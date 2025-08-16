@@ -72,7 +72,7 @@ async function loginController(req, res) {
   }
 
   // token create and send
-  const token = jwt.sign({ id: user._id }.process.env.JWT_SECRET);
+  const token = jwt.sign({ id: user._id }, process.env.JWT_SECRET);
   res.cookie("token", token);
 
   // remove password from response
