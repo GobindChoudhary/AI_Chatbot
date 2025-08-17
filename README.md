@@ -1,5 +1,3 @@
-Here’s a **professional, industry-standard README** in Markdown format for your AI chatbot backend project, based on your description:
-
 ```markdown
 # AI Chatbot Backend
 
