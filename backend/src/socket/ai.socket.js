@@ -32,27 +32,38 @@ function connectSocket(httpServer) {
 
   io.on("connection", (socket) => {
     socket.on("ai-message", async (messagePayload) => {
-      // add message to DB
-      const message = await messageModel.create({
-        user: socket.user._id,
-        chat: messagePayload.chat,
-        content: messagePayload.content,
-        role: "user",
-      });
-
-      // creating vector
-      const vector = await generateVector(messagePayload.content);
-
-      // quering vector database
-      const memory = await queryMemory({
-        queryVector: vector,
-        limit: 5,
-        metadata: {
+      // adding message to DB and generating vector
+      const [message, vector] = await Promise.all([
+        // add message to DB
+        messageModel.create({
           user: socket.user._id,
-        },
-      });
+          chat: messagePayload.chat,
+          content: messagePayload.content,
+          role: "user",
+        }),
+        // creating vector
+        generateVector(messagePayload.content),
+      ]);
 
-      // creating memory in vector database
+      // quering vector database  & fetching old 20 chat
+      const [memory, rawChatHistory] = await Promise.all([
+        queryMemory({
+          queryVector: vector,
+          limit: 5,
+          metadata: {
+            user: socket.user._id,
+          },
+        }),
+        messageModel
+          .find({
+            chat: messagePayload.chat,
+          })
+          .sort({ createdAt: -1 })
+          .limit(20)
+          .lean(),
+      ]);
+      
+      //  creating memory in vector database
       await createMemory({
         vector,
         messageId: message._id,
@@ -63,19 +74,10 @@ function connectSocket(httpServer) {
         },
       });
 
-      //  creating an arr of last 20 chats
-      const chatHistory = (
-        await messageModel
-          .find({
-            chat: messagePayload.chat,
-          })
-          .sort({ createdAt: -1 })
-          .limit(20)
-          .lean()
-      ).reverse();
+      //  reverseing an arr of last 20 chats so latest chat come first
+      const chatHistory = rawChatHistory.reverse();
 
       // stm
-
       const stm = chatHistory.map((item) => {
         return {
           role: item.role,
@@ -83,6 +85,7 @@ function connectSocket(httpServer) {
         };
       });
 
+      // ltm
       const ltm = [
         {
           role: "user",
@@ -97,23 +100,24 @@ function connectSocket(httpServer) {
       ];
 
       // sending chatHistory to gemini
-      console.log("memory");
-      console.log(memory);
-      console.log("LTM");
-      console.log(ltm[0]);
-      console.log("STM");
-      console.log(stm);
       const response = await generateResponse([...ltm, ...stm]);
 
-      // add message to DB
-      const responseMemory = await messageModel.create({
-        user: socket.user._id,
-        chat: messagePayload.chat,
+      // sending response to client
+      socket.emit("ai-response", {
         content: response,
-        role: "model",
+        chat: messagePayload.chat,
       });
 
-      const responseVector = await generateVector(response);
+      // add responsemessage to DB and generating vector of response of ai
+      const [responseMemory, responseVector] = await Promise.all([
+        messageModel.create({
+          user: socket.user._id,
+          chat: messagePayload.chat,
+          content: response,
+          role: "model",
+        }),
+        generateVector(response),
+      ]);
 
       await createMemory({
         vector: responseVector,
@@ -123,12 +127,6 @@ function connectSocket(httpServer) {
           user: socket.user._id,
           text: response,
         },
-      });
-
-      // sending response to client
-      socket.emit("ai-response", {
-        content: response,
-        chat: messagePayload.chat,
       });
     });
 
