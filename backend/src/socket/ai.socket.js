@@ -5,7 +5,7 @@ const userModel = require("../models/user.model");
 const { generateResponse, generateVector } = require("../services/ai.service");
 const messageModel = require("../models/message.model");
 const { createMemory, queryMemory } = require("../services/vector.service");
-
+const fetchFromWeb = require("../services/webapi.service");
 function connectSocket(httpServer) {
   const io = new Server(httpServer, {});
 
@@ -45,6 +45,33 @@ function connectSocket(httpServer) {
         generateVector(messagePayload.content),
       ]);
 
+      const isCurrentEvent = (text) => {
+        const keywords = [
+          "today",
+          "latest",
+          "news",
+          "current",
+          "price",
+          "weather",
+          "update",
+        ];
+        return keywords.some((word) => text.toLowerCase().includes(word));
+      };
+
+      let externalContext = "";
+      if (isCurrentEvent(messagePayload.content)) {
+        externalContext = await fetchFromWeb(messagePayload.content);
+      }
+
+      const externalMessage = {
+        role: "user",
+        parts: [
+          {
+            text: `Here is some up-to-date information use this to generate a better response for user in the context of previous conversation:\n\n${externalContext}`,
+          },
+        ],
+      };
+
       // quering vector database  & fetching old 20 chat
       const [memory, rawChatHistory] = await Promise.all([
         queryMemory({
@@ -62,7 +89,7 @@ function connectSocket(httpServer) {
           .limit(20)
           .lean(),
       ]);
-      
+
       //  creating memory in vector database
       await createMemory({
         vector,
@@ -100,7 +127,11 @@ function connectSocket(httpServer) {
       ];
 
       // sending chatHistory to gemini
-      const response = await generateResponse([...ltm, ...stm]);
+      const response = await generateResponse([
+        externalMessage,
+        ...ltm,
+        ...stm,
+      ]);
 
       // sending response to client
       socket.emit("ai-response", {
