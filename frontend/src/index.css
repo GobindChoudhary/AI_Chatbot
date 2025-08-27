@@ -1,0 +1,39 @@
+@import "tailwindcss";
+
+/* Light theme defaults */
+:root {
+  --bg: #f7f7fb;
+  --surface: #ffffff;
+  --muted: #6b7280;
+  --accent: #0ea5a4; /* teal-ish */
+  --text: #0f172a;
+  --glass: rgba(15, 23, 42, 0.04);
+  --border: rgba(15, 23, 42, 0.06);
+}
+
+/* Respect system dark mode */
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0b0b0d;
+    --surface: #0f1720;
+    --muted: #9ca3af;
+    --accent: #34d399;
+    --text: #e6eef6;
+    --glass: rgba(255, 255, 255, 0.03);
+    --border: rgba(255, 255, 255, 0.04);
+  }
+}
+
+/* small helpers */
+.body-bg {
+  background: var(--bg);
+  color: var(--text);
+}
+
+/* optional card */
+.card {
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.02), transparent);
+  background-color: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+}
