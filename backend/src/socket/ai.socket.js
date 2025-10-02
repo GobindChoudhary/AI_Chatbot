@@ -7,13 +7,31 @@ const messageModel = require("../models/message.model");
 const { createMemory, queryMemory } = require("../services/vector.service");
 const fetchFromWeb = require("../services/webapi.service");
 function connectSocket(httpServer) {
-  const io = new Server(httpServer, {});
+  const io = new Server(httpServer, {
+    cors: {
+      origin: "http://localhost:5173",
+      credentials: true,
+    },
+  });
 
   // socket middleware
   io.use(async (socket, next) => {
+    // debug: log handshake headers to help diagnose missing cookies
+    try {
+      // eslint-disable-next-line no-console
+      console.debug(
+        "socket handshake headers:",
+        socket.handshake.headers || {}
+      );
+    } catch (e) {}
+
     const cookies = cookie.parse(socket.handshake.headers?.cookie || "");
 
     if (!cookies.token) {
+      // eslint-disable-next-line no-console
+      console.warn(
+        "Socket authentication failed: no token cookie present on handshake"
+      );
       return next(new Error("Authentication error: No token provided"));
     }
 
@@ -26,6 +44,11 @@ function connectSocket(httpServer) {
 
       next();
     } catch (error) {
+      // eslint-disable-next-line no-console
+      console.warn(
+        "Socket authentication failed: invalid token",
+        error && error.message
+      );
       next(new Error("Authentication error: Invalid token provided"));
     }
   });

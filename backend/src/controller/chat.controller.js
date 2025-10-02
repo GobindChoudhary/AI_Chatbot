@@ -1,4 +1,5 @@
 const chatModel = require("../models/chat.model");
+const messageModel = require("../models/message.model");
 
 async function createChat(req, res) {
   const { title } = req.body;
@@ -20,6 +21,40 @@ async function createChat(req, res) {
   });
 }
 
+async function getMessages(req, res) {
+  try {
+    const { chatId } = req.params;
+    const user = req.user;
+
+    // ensure chat belongs to user
+    const chat = await chatModel.findOne({ _id: chatId, user: user._id });
+    if (!chat) return res.status(404).json({ message: "Chat not found" });
+
+    const messages = await messageModel
+      .find({ chat: chatId })
+      .sort({ createdAt: 1 });
+    return res.status(200).json({ messages });
+  } catch (error) {
+    console.error("GetMessages Error:", error);
+    return res.status(500).json({ message: "Server error" });
+  }
+}
+
+async function getChats(req, res) {
+  try {
+    const user = req.user;
+    const chats = await chatModel
+      .find({ user: user._id })
+      .sort({ lastActivity: -1 });
+    return res.status(200).json({ chats });
+  } catch (error) {
+    console.error("GetChats Error:", error);
+    return res.status(500).json({ message: "Server error" });
+  }
+}
+
 module.exports = {
   createChat,
+  getMessages,
+  getChats,
 };
