@@ -5,9 +5,18 @@ module.exports = {
     "./src/**/*.{js,jsx,ts,tsx}",
     "./pages/**/*.{js,jsx,ts,tsx}",
   ],
-  darkMode: "media", // use system preference
   theme: {
-    extend: {},
+    extend: {
+      colors: {
+        bg: "#000000",
+        surface: "#000000",
+        border: "#000000",
+        text: "#ffffff",
+        muted: "#999999",
+        accent: "#ffffff",
+        glass: "rgba(0, 0, 0, 0.1)",
+      },
+    },
   },
   plugins: [],
 };

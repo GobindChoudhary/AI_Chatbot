@@ -19,10 +19,13 @@ const Home = () => {
     // check authentication using cookie-token
     const check = async () => {
       try {
-        const res = await fetch("http://localhost:3000/api/auth/me", {
-          method: "GET",
-          credentials: "include",
-        });
+        const res = await fetch(
+          import.meta.env.VITE_SERVER_DOMAIN + "/api/auth/me",
+          {
+            method: "GET",
+            credentials: "include",
+          }
+        );
         if (!res.ok) {
           // not authenticated -> redirect to login
           window.location.href = "/login";
@@ -39,7 +42,7 @@ const Home = () => {
   }, []);
 
   // listen for chat selection events dispatched from other components
-  React.useEffect(() => {
+  useEffect(() => {
     const onSelected = (e) => {
       if (e && e.detail) setActiveChat(e.detail);
     };
@@ -49,16 +52,14 @@ const Home = () => {
 
   if (checkingAuth) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-[var(--bg)] text-[var(--text)]">
-        <div className="text-sm text-[var(--muted)]">
-          Checking authentication...
-        </div>
+      <div className="min-h-screen flex items-center justify-center bg-bg text-text">
+        <div className="text-sm text-muted">Checking authentication...</div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen  flex bg-[var(--bg)] text-[var(--text)]">
+    <div className="min-h-screen  flex bg-bg text-text">
       <Sidebar
         mobileOpen={sidebarOpen}
         setMobileOpen={setSidebarOpen}

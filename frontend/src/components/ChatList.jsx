@@ -3,30 +3,20 @@ import React, { useEffect, useState } from "react";
 const ChatItem = ({ title, last, compact = false, onClick = () => {} }) => {
   return (
     <div
-      className={`flex items-center gap-3 rounded-lg hover:bg-[var(--glass)] transition-colors cursor-pointer ${
+      className={`flex items-center gap-3 rounded-lg hover:bg-glass transition-colors cursor-pointer ${
         compact ? "px-2 py-1" : "px-3 py-2"
       }`}
       onClick={onClick}
     >
-      <div
-        className={`flex items-center justify-center text-sm text-white bg-gray-600/20 ${
-          compact ? "w-8 h-8 rounded-md" : "w-10 h-10 rounded-md"
-        }`}
-      >
-        U
-      </div>
-
       <div className={`flex-1 min-w-0 ${compact ? "overflow-hidden" : ""}`}>
         <div className="flex justify-between items-center">
-          <h4 className="truncate text-sm font-medium text-[var(--text)]">
+          <h4 className="truncate text-sm font-medium text-text capitalize">
             {title}
           </h4>
-          {!compact && <span className="text-xs text-[var(--muted)]">2h</span>}
+          {!compact && <span className="text-xs text-muted">2h</span>}
         </div>
 
-        {!compact && (
-          <p className="text-xs text-[var(--muted)] truncate">{last}</p>
-        )}
+        {!compact && <p className="text-xs text-muted truncate">{last}</p>}
       </div>
     </div>
   );
@@ -38,9 +28,12 @@ export default function ChatList({ compact = false, onSelect = () => {} }) {
   useEffect(() => {
     const load = async () => {
       try {
-        const res = await fetch("http://localhost:3000/api/chat", {
-          credentials: "include",
-        });
+        const res = await fetch(
+          import.meta.env.VITE_SERVER_DOMAIN + "/api/chat",
+          {
+            credentials: "include",
+          }
+        );
         if (!res.ok) return;
         const data = await res.json();
         setItems(data.chats || []);
@@ -77,9 +70,6 @@ export default function ChatList({ compact = false, onSelect = () => {} }) {
             title={it.title}
             last={it.last}
             onClick={() => {
-              // debug: log selection
-              // eslint-disable-next-line no-console
-              console.debug("ChatList: selected chat", it);
               onSelect(it);
             }}
           />
@@ -87,7 +77,7 @@ export default function ChatList({ compact = false, onSelect = () => {} }) {
       </div>
 
       {!compact && (
-        <div className="pt-2 border-t border-[var(--border)] text-xs text-[var(--muted)]">
+        <div className="pt-2 text-xs text-muted">
           <div>Examples • Tips • Shortcuts</div>
         </div>
       )}

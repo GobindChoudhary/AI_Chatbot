@@ -5,16 +5,16 @@ let socket = null;
 export function initSocket() {
   if (socket) return socket;
   // no explicit auth token is sent; browser will attach cookies automatically
-  socket = io("http://localhost:3000", {
+  socket = io(import.meta.env.VITE_SERVER_DOMAIN, {
     withCredentials: true,
   });
 
   socket.on("connect", () => {
-    console.log("socket connected", socket.id);
+    // Connected successfully
   });
 
   socket.on("disconnect", (reason) => {
-    console.log("socket disconnected", reason);
+    // Socket disconnected
   });
 
   socket.on("connect_error", (err) => {

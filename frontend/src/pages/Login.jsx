@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, Link } from "react-router-dom";
 const Login = () => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -17,12 +17,15 @@ const Login = () => {
     setLoading(true);
     try {
       // placeholder: attempt login against backend if available
-      const res = await fetch("http://localhost:3000/api/auth/login", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        credentials: "include",
-        body: JSON.stringify({ email, password }),
-      });
+      const res = await fetch(
+        import.meta.env.VITE_SERVER_DOMAIN + "/api/auth/login",
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          credentials: "include",
+          body: JSON.stringify({ email, password }),
+        }
+      );
 
       if (!res.ok) {
         const data = await res.json().catch(() => ({}));
@@ -32,7 +35,6 @@ const Login = () => {
       // success: you can redirect or store tokens here
       // const data = await res.json();
 
-      console.log("Login successful");
       navigate("/");
     } catch (err) {
       setError(err.message || "Login failed");
@@ -83,17 +85,7 @@ const Login = () => {
               />
             </label>
 
-            <div className="flex items-center justify-between text-xs">
-              <label className="flex items-center gap-2">
-                <input type="checkbox" className="w-4 h-4" />
-                <span className="text-[var(--muted)]">Remember me</span>
-              </label>
-              <a className="text-[var(--accent)]" href="#">
-                Forgot?
-              </a>
-            </div>
-
-            <div>
+            <div className="mt-6">
               <button
                 type="submit"
                 disabled={loading}
@@ -106,9 +98,9 @@ const Login = () => {
 
           <div className="mt-4 text-center text-sm text-[var(--muted)]">
             Don't have an account?{" "}
-            <a href="#" className="text-[var(--accent)]">
+            <Link to="/register" className="text-[var(--accent)]">
               Register
-            </a>
+            </Link>
           </div>
         </div>
       </div>

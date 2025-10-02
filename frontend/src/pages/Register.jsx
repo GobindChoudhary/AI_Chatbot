@@ -11,7 +11,6 @@ const Register = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError("");
-    console.log(userName, email, password);
     if (!userName) return setError("Please enter your username.");
     if (!email) return setError("Please enter your email.");
     if (!password) return setError("Please enter a password.");
@@ -20,19 +19,21 @@ const Register = () => {
 
     setLoading(true);
     try {
-      const res = await fetch("http://localhost:3000/api/auth/register", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        credentials: "include",
-        body: JSON.stringify({ userName, email, password }),
-      });
+      const res = await fetch(
+        import.meta.env.VITE_SERVER_DOMAIN + "/api/auth/register",
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          credentials: "include",
+          body: JSON.stringify({ userName, email, password }),
+        }
+      );
 
       if (!res.ok) {
         const data = await res.json().catch(() => ({}));
         throw new Error(data.message || "Registration failed");
       }
 
-      console.log("Registration successful");
       navigate("/");
       // optionally redirect or clear form here
     } catch (err) {
@@ -123,7 +124,7 @@ const Register = () => {
 
           <div className="mt-4 text-center text-sm text-[var(--muted)]">
             Already have an account?{" "}
-            <a href="#" className="text-[var(--accent)]">
+            <a href="/login" className="text-[var(--accent)]">
               Sign in
             </a>
           </div>
