@@ -11,18 +11,13 @@ const NavItem = ({
 }) => (
   <button
     onClick={onClick}
-    className={`flex items-center gap-3 px-3 py-2 rounded-lg w-full hover:bg-glass transition-colors text-left ${
-      active ? "bg-glass" : ""
-    }`}
+    className={`flex items-center w-full p-2 rounded-lg transition-colors text-left hover:bg-gray-800 ${
+      active ? "bg-gray-800" : ""
+    } ${collapsed ? "justify-center" : "gap-3"}`}
+    title={collapsed ? label : undefined}
   >
-    <span className="text-accent">{icon}</span>
-    <span
-      className={`text-sm text-text ${
-        collapsed ? "hidden" : "hidden md:inline"
-      }`}
-    >
-      {label}
-    </span>
+    <span className="text-accent flex-shrink-0">{icon}</span>
+    {!collapsed && <span className="text-sm text-text truncate">{label}</span>}
   </button>
 );
 
@@ -33,7 +28,24 @@ export default function Sidebar({
 }) {
   const [currentUser, setCurrentUser] = useState(null);
   const [openChatList, setOpenChatList] = useState(true);
-  const [desktopCollapsed, setDesktopCollapsed] = useState(false);
+  const [collapsed, setCollapsed] = useState(false);
+
+  // Auto-collapse on mobile screens
+  useEffect(() => {
+    const handleResize = () => {
+      if (window.innerWidth < 640) {
+        setCollapsed(true);
+      } else if (window.innerWidth >= 768) {
+        setCollapsed(false);
+      }
+    };
+
+    // Set initial state
+    handleResize();
+
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
+  }, []);
 
   useEffect(() => {
     // load current user (cookie-based auth)
@@ -58,34 +70,22 @@ export default function Sidebar({
 
   return (
     <aside
-      className={`bg-black/20 ${
-        mobileOpen
-          ? "flex fixed left-0 top-0 w-64 h-screen p-3  z-50 overflow-auto "
-          : "hidden md:flex md:relative md:flex-shrink-0 md:h-screen md:p-3  md:bg-surface"
-      } ${
-        desktopCollapsed ? "md:w-16" : "md:w-64"
-      } flex-col transform transition-all duration-200`}
+      className={`bg-surface flex flex-col h-screen transition-all duration-200 z-10 border-r border-gray-800 ${
+        collapsed ? "w-12 sm:w-14" : "w-56 sm:w-64"
+      }`}
     >
-      <div className=" mb-2 flex justify-start">
+      <div className="p-2 flex justify-start border-b border-gray-800">
         <button
-          onClick={() => {
-            // On mobile, close the sidebar
-            if (window.innerWidth < 768) {
-              setMobileOpen(false);
-            } else {
-              // On desktop, toggle collapsed state
-              setDesktopCollapsed(!desktopCollapsed);
-            }
-          }}
-          className="px-2 py-1 rounded hover:bg-glass"
+          onClick={() => setCollapsed(!collapsed)}
+          className="p-2 rounded-lg hover:bg-gray-800 transition-colors"
           aria-label="Toggle sidebar"
         >
           <Menu size={20} className="text-accent" />
         </button>
       </div>
 
-      <nav className="flex-1 space-y-1 mt-2">
-        <div className="relative">
+      <nav className="flex-1 overflow-y-auto p-2">
+        <div className="space-y-1">
           <NavItem
             icon={<Plus size={18} />}
             label="New Chat"
@@ -98,7 +98,7 @@ export default function Sidebar({
                 );
               } catch (e) {}
             }}
-            collapsed={desktopCollapsed}
+            collapsed={collapsed}
           />
 
           <NavItem
@@ -106,23 +106,11 @@ export default function Sidebar({
             label="Chats"
             onClick={() => setOpenChatList((s) => !s)}
             active={openChatList}
-            collapsed={desktopCollapsed}
+            collapsed={collapsed}
           />
 
-          {openChatList && !desktopCollapsed && (
-            <div className="absolute left-full top-0 ml-2 w-80 max-w-xs h-[80vh] z-50 rounded-lg shadow-xl bg-surface overflow-hidden md:hidden">
-              <ChatList
-                onSelect={(chat) => {
-                  if (typeof onNewChat === "function") onNewChat(chat);
-                  setOpenChatList(false);
-                  setMobileOpen(false);
-                }}
-              />
-            </div>
-          )}
-
-          {openChatList && !desktopCollapsed && (
-            <div className="hidden md:block mt-3 overflow-y-auto max-h-[60vh]">
+          {openChatList && !collapsed && (
+            <div className="mt-2 space-y-1">
               <ChatList
                 compact={true}
                 onSelect={(chat) => {
@@ -134,25 +122,27 @@ export default function Sidebar({
         </div>
       </nav>
 
-      <div className="mt-4 pt-4">
-        <button className="w-full flex items-center gap-3 px-2 py-2 rounded-lg hover:bg-glass">
-          <div className="w-8 h-8 rounded-full bg-gradient-to-br from-accent to-indigo-500 flex items-center justify-center text-sm font-semibold">
+      <div className="p-2 border-t border-gray-800">
+        <button
+          className={`w-full flex items-center gap-3 p-2 rounded-lg hover:bg-gray-800 transition-colors ${
+            collapsed ? "justify-center" : ""
+          }`}
+        >
+          <div className="w-8 h-8 rounded-full bg-gradient-to-br from-blue-500 to-purple-500 flex items-center justify-center text-sm font-semibold flex-shrink-0">
             {currentUser && currentUser.userName
               ? currentUser.userName.charAt(0).toUpperCase()
               : "G"}
           </div>
-          <div
-            className={`text-left ${
-              desktopCollapsed ? "hidden" : "hidden md:block"
-            }`}
-          >
-            <div className="text-sm text-text">
-              {currentUser && currentUser.userName
-                ? currentUser.userName
-                : "Guest"}
+          {!collapsed && (
+            <div className="text-left min-w-0">
+              <div className="text-sm text-text truncate">
+                {currentUser && currentUser.userName
+                  ? currentUser.userName
+                  : "Guest"}
+              </div>
+              <div className="text-xs text-muted">Free</div>
             </div>
-            <div className="text-xs text-muted">Free</div>
-          </div>
+          )}
         </button>
       </div>
     </aside>

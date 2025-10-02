@@ -4,8 +4,8 @@ import MarkdownPreview from "@uiw/react-markdown-preview";
 export default function Message({ from, children }) {
   const bubbleClass =
     from === "me"
-      ? "max-w-[70%] p-4 rounded-2xl rounded-tr-none bg-gradient-to-br from-blue-600 via-blue-500 to-purple-600 text-white shadow-xl border border-blue-400/20 backdrop-blur-sm"
-      : "max-w-[85%] p-4 rounded-md bg-transparent text-white/90";
+      ? "max-w-[85%] sm:max-w-[70%] p-3 md:p-4 rounded-2xl rounded-tr-none bg-gradient-to-br from-blue-600 via-blue-500 to-purple-600 text-white shadow-xl border border-blue-400/20 backdrop-blur-sm"
+      : "max-w-[90%] sm:max-w-[85%] p-3 md:p-4 rounded-md bg-transparent text-white/90";
 
   return (
     <div
@@ -15,7 +15,7 @@ export default function Message({ from, children }) {
     >
       <div className={bubbleClass}>
         {from === "me" ? (
-          <div className="text-sm leading-relaxed">{children}</div>
+          <div className="text-sm leading-relaxed break-words">{children}</div>
         ) : (
           <MarkdownPreview
             source={String(children)}

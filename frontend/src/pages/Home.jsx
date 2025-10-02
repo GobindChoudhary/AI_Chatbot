@@ -3,17 +3,8 @@ import Sidebar from "../components/Sidebar";
 import ChatWindow from "../components/ChatWindow";
 
 const Home = () => {
-  const [sidebarOpen, setSidebarOpen] = useState(false);
   const [checkingAuth, setCheckingAuth] = useState(true);
   const [activeChat, setActiveChat] = useState(null);
-
-  useEffect(() => {
-    // prevent background scrolling when mobile sidebar is open
-    document.body.style.overflow = sidebarOpen ? "hidden" : "";
-    return () => {
-      document.body.style.overflow = "";
-    };
-  }, [sidebarOpen]);
 
   useEffect(() => {
     // check authentication using cookie-token
@@ -59,30 +50,17 @@ const Home = () => {
   }
 
   return (
-    <div className="min-h-screen  flex bg-bg text-text">
-      <Sidebar
-        mobileOpen={sidebarOpen}
-        setMobileOpen={setSidebarOpen}
-        onNewChat={(chat) => setActiveChat(chat)}
-      />
+    <div className="h-screen flex bg-bg text-text overflow-hidden">
+      <Sidebar onNewChat={(chat) => setActiveChat(chat)} />
 
-      <div className="flex-1 flex min-h-0">
+      <div className="flex-1 flex min-h-0 min-w-0">
         <div className="flex-1 flex flex-col min-h-0">
           <ChatWindow
-            openSidebar={() => setSidebarOpen(true)}
             activeChat={activeChat}
             onCreateChat={(chat) => setActiveChat(chat)}
           />
         </div>
       </div>
-
-      {/* overlay to close sidebar on mobile when open */}
-      {sidebarOpen && (
-        <div
-          className="md:hidden fixed inset-0 bg-black/30 z-40"
-          onClick={() => setSidebarOpen(false)}
-        />
-      )}
     </div>
   );
 };

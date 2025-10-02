@@ -5,7 +5,7 @@ import Message from "./Message";
 import ChatHeader from "./ChatHeader";
 import ChatInput from "./ChatInput";
 
-export default function ChatWindow({ openSidebar, activeChat, onCreateChat }) {
+export default function ChatWindow({ activeChat, onCreateChat }) {
   const [messages, setMessages] = useState([]);
   const [title, setTitle] = useState("");
   const [input, setInput] = useState("");
@@ -154,21 +154,20 @@ export default function ChatWindow({ openSidebar, activeChat, onCreateChat }) {
   return (
     <>
       <div className="flex-1 flex flex-col h-screen max-h-screen">
-        <ChatHeader
-          title={title}
-          active={!!activeChatId}
-          openSidebar={openSidebar}
-        />
+        <ChatHeader title={title} active={!!activeChatId} />
 
         <main ref={messagesRef} className="flex-1 overflow-y-auto bg-bg">
-          <div className="max-w-4xl mx-auto px-6 py-8">
-            <div className="space-y-8 min-h-0">
+          <div className="max-w-4xl mx-auto px-3 sm:px-4 md:px-6 py-4 md:py-8">
+            <div className="space-y-4 md:space-y-8 min-h-0">
               {messages.length === 0 && (
-                <div className="text-center py-20">
+                <div className="text-center py-10 md:py-20">
                   <div className="mb-4 flex justify-center">
-                    <Sparkles size={48} className="text-blue-500" />
+                    <Sparkles
+                      size={36}
+                      className="text-blue-500 md:w-12 md:h-12"
+                    />
                   </div>
-                  <div className="text-3xl font-semibold mb-2 bg-gradient-to-r from-blue-500 via-purple-500 to-pink-500 bg-clip-text text-transparent">
+                  <div className="text-xl md:text-3xl font-semibold mb-2 bg-gradient-to-r from-blue-500 via-purple-500 to-pink-500 bg-clip-text text-transparent">
                     Hi, {currentUser?.userName || "Guest"}!
                   </div>
                   <div className="text-sm text-muted">Start a conversation</div>
