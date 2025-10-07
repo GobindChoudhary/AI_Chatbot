@@ -1,15 +1,16 @@
-import { Sparkles, LogOut } from "lucide-react";
+import { Sparkles, LogOut, Menu } from "lucide-react";
 
-export default function ChatHeader({ title, active }) {
+export default function ChatHeader({ title, active, onToggleSidebar }) {
   const handleLogout = async () => {
     try {
-      const serverDomain = import.meta.env.VITE_SERVER_DOMAIN;
-      const res = await fetch(`${serverDomain}/api/auth/logout`, {
-        method: "POST",
-        credentials: "include",
-      });
+      const res = await fetch(
+        `${import.meta.env.VITE_SERVER_DOMAIN}/api/auth/logout`,
+        {
+          method: "POST",
+          credentials: "include",
+        }
+      );
       if (res.ok) {
-        // Redirect to login page after successful logout
         window.location.href = "/login";
       } else {
         console.error("Logout failed", await res.text());
@@ -22,15 +23,23 @@ export default function ChatHeader({ title, active }) {
   return (
     <header className="px-3 sm:px-4 py-2 sm:py-3 bg-surface flex items-center justify-between">
       <div className="flex items-center gap-2 sm:gap-3">
-        <div className="text-lg sm:text-xl font-semibold text-text">
-          {" "}
-          <div className="flex gap-1 sm:gap-2 items-center">
-            <Sparkles
-              size={16}
-              className="text-blue-500 sm:w-[18px] sm:h-[18px]"
-            />
-            <h1 className="text-base sm:text-lg">ByteBot</h1>
-          </div>
+        {/* Mobile menu button */}
+        <button
+          onClick={onToggleSidebar}
+          className="md:hidden p-2 rounded-lg bg-black/20 hover:bg-black/30 text-white transition-colors duration-200"
+          aria-label="Toggle sidebar"
+        >
+          <Menu size={18} className="text-muted" />
+        </button>
+
+        <div className="flex gap-1 sm:gap-2 items-center">
+          <Sparkles
+            size={16}
+            className="text-blue-500 sm:w-[18px] sm:h-[18px]"
+          />
+          <h1 className="text-base sm:text-lg font-semibold text-text">
+            ByteBot
+          </h1>
         </div>
       </div>
 

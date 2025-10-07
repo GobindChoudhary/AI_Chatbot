@@ -4,21 +4,13 @@ let socket = null;
 
 export function initSocket() {
   if (socket) return socket;
-  // no explicit auth token is sent; browser will attach cookies automatically
+
   socket = io(import.meta.env.VITE_SERVER_DOMAIN, {
     withCredentials: true,
   });
 
-  socket.on("connect", () => {
-    // Connected successfully
-  });
-
-  socket.on("disconnect", (reason) => {
-    // Socket disconnected
-  });
-
   socket.on("connect_error", (err) => {
-    console.error("socket connect error", err);
+    console.error("Socket connection error:", err);
   });
 
   return socket;
@@ -28,24 +20,23 @@ export function getSocket() {
   return socket;
 }
 
-// helper to emit an ai-message
 export function sendAiMessage(payload) {
   const s = socket || initSocket();
-  if (!s) return;
-  s.emit("ai-message", payload);
+  if (s) {
+    s.emit("ai-message", payload);
+  }
 }
 
-// subscribe to ai-response events
-export function onAiResponse(cb) {
+export function onAiResponse(callback) {
   const s = socket || initSocket();
   if (!s) return () => {};
-  s.on("ai-response", cb);
-  return () => s.off("ai-response", cb);
+
+  s.on("ai-response", callback);
+  return () => s.off("ai-response", callback);
 }
 
-// helper to unsubscribe explicitly
-export function offAiResponse(cb) {
-  const s = socket;
-  if (!s) return;
-  s.off("ai-response", cb);
+export function offAiResponse(callback) {
+  if (socket) {
+    socket.off("ai-response", callback);
+  }
 }

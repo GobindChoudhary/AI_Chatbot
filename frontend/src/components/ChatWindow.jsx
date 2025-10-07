@@ -5,21 +5,26 @@ import Message from "./Message";
 import ChatHeader from "./ChatHeader";
 import ChatInput from "./ChatInput";
 
-export default function ChatWindow({ activeChat, onCreateChat }) {
+export default function ChatWindow({
+  activeChat,
+  onCreateChat,
+  onToggleSidebar,
+}) {
   const [messages, setMessages] = useState([]);
   const [title, setTitle] = useState("");
   const [input, setInput] = useState("");
   const [currentUser, setCurrentUser] = useState(null);
+  const [isGenerating, setIsGenerating] = useState(false);
   const messagesRef = useRef(null);
 
-  const activeChatId = activeChat && activeChat._id ? activeChat._id : null;
+  const activeChatId = activeChat?._id || null;
 
+  // Load current user
   useEffect(() => {
-    // load current user
     const loadUser = async () => {
       try {
         const res = await fetch(
-          import.meta.env.VITE_SERVER_DOMAIN + "/api/auth/me",
+          `${import.meta.env.VITE_SERVER_DOMAIN}/api/auth/me`,
           {
             method: "GET",
             credentials: "include",
@@ -36,14 +41,15 @@ export default function ChatWindow({ activeChat, onCreateChat }) {
     loadUser();
   }, []);
 
+  // Load messages for selected chat
   useEffect(() => {
-    // load messages for selected chat
     const loadMessages = async () => {
       if (!activeChatId) {
         setMessages([]);
         setTitle("");
         return;
       }
+
       try {
         const res = await fetch(
           `${
@@ -54,10 +60,13 @@ export default function ChatWindow({ activeChat, onCreateChat }) {
             credentials: "include",
           }
         );
-        if (!res.ok) return setMessages([]);
-        const data = await res.json();
-        setMessages(data.messages || []);
-        setTitle(activeChat.title || "Chat");
+        if (res.ok) {
+          const data = await res.json();
+          setMessages(data.messages || []);
+          setTitle(activeChat.title || "Chat");
+        } else {
+          setMessages([]);
+        }
       } catch (err) {
         console.error(err);
         setMessages([]);
@@ -66,11 +75,12 @@ export default function ChatWindow({ activeChat, onCreateChat }) {
     loadMessages();
   }, [activeChatId, activeChat]);
 
+  // Setup socket connection and AI response listener
   useEffect(() => {
     initSocket();
-    const unsub = onAiResponse((payload) => {
-      if (!payload || !payload.chat) return;
-      if (payload.chat === activeChatId) {
+    const unsubscribe = onAiResponse((payload) => {
+      if (payload?.chat === activeChatId) {
+        setIsGenerating(false);
         setMessages((prev) => [
           ...prev,
           { _id: `ai-${Date.now()}`, role: "model", content: payload.content },
@@ -79,27 +89,31 @@ export default function ChatWindow({ activeChat, onCreateChat }) {
     });
     return () => {
       try {
-        unsub();
-      } catch (e) {}
+        unsubscribe();
+      } catch (e) {
+        // Ignore unsubscribe errors
+      }
     };
   }, [activeChatId]);
 
+  // Auto-scroll to bottom when messages change
   useEffect(() => {
-    if (!messagesRef.current) return;
-    messagesRef.current.scrollTo({
-      top: messagesRef.current.scrollHeight,
-      behavior: "smooth",
-    });
+    if (messagesRef.current) {
+      messagesRef.current.scrollTo({
+        top: messagesRef.current.scrollHeight,
+        behavior: "smooth",
+      });
+    }
   }, [messages]);
 
-  // optimistic send + emit
-  const doSend = async (chatId, messageText) => {
+  const sendMessage = async (chatId, messageText) => {
     const userMessage = {
       _id: `u-${Date.now()}`,
       role: "user",
       content: messageText,
     };
     setMessages((prev) => [...prev, userMessage]);
+    setIsGenerating(true);
     sendAiMessage({ chat: chatId, content: messageText });
     setInput("");
   };
@@ -108,91 +122,120 @@ export default function ChatWindow({ activeChat, onCreateChat }) {
     if (!input.trim()) return;
 
     if (!activeChatId) {
-      // Create new chat using first message as title
-      await createChatThenSend(input.slice(0, 50)); // Limit title to 50 chars
+      await createChatAndSend(input.slice(0, 50)); // Limit title to 50 chars
       return;
     }
 
-    doSend(activeChatId, input);
+    sendMessage(activeChatId, input);
   };
 
-  // create chat and send pending input
-  const createChatThenSend = async (name) => {
-    if (!name) return;
+  const createChatAndSend = async (title) => {
+    if (!title) return;
+
     try {
       const res = await fetch(
-        import.meta.env.VITE_SERVER_DOMAIN + "/api/chat",
+        `${import.meta.env.VITE_SERVER_DOMAIN}/api/chat`,
         {
           method: "POST",
           credentials: "include",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ title: name }),
+          body: JSON.stringify({ title }),
         }
       );
-      if (!res.ok) return console.error("Failed to create chat");
+
+      if (!res.ok) {
+        console.error("Failed to create chat");
+        return;
+      }
+
       const data = await res.json();
       const newChat = data.chat;
-      // notify parent and other listeners
+
+      // Notify parent and dispatch events
       if (typeof onCreateChat === "function") onCreateChat(newChat);
+
       try {
         window.dispatchEvent(
           new CustomEvent("chat:created", { detail: newChat })
         );
-      } catch (e) {}
-      try {
         window.dispatchEvent(
           new CustomEvent("chat:selected", { detail: newChat })
         );
-      } catch (e) {}
-      // send message for newly created chat
-      await doSend(newChat._id, input);
+      } catch (e) {
+        // Ignore event dispatch errors
+      }
+
+      await sendMessage(newChat._id, input);
     } catch (err) {
       console.error(err);
     }
   };
 
-  return (
-    <>
-      <div className="flex-1 flex flex-col h-screen max-h-screen">
-        <ChatHeader title={title} active={!!activeChatId} />
-
-        <main ref={messagesRef} className="flex-1 overflow-y-auto bg-bg">
-          <div className="max-w-4xl mx-auto px-3 sm:px-4 md:px-6 py-4 md:py-8">
-            <div className="space-y-4 md:space-y-8 min-h-0">
-              {messages.length === 0 && (
-                <div className="text-center py-10 md:py-20">
-                  <div className="mb-4 flex justify-center">
-                    <Sparkles
-                      size={36}
-                      className="text-blue-500 md:w-12 md:h-12"
-                    />
-                  </div>
-                  <div className="text-xl md:text-3xl font-semibold mb-2 bg-gradient-to-r from-blue-500 via-purple-500 to-pink-500 bg-clip-text text-transparent">
-                    Hi, {currentUser?.userName || "Guest"}!
-                  </div>
-                  <div className="text-sm text-muted">Start a conversation</div>
-                </div>
-              )}
-              {messages.map((m) => (
-                <Message key={m._id} from={m.role === "user" ? "me" : "them"}>
-                  {m.content}
-                </Message>
-              ))}
-            </div>
+  const LoadingIndicator = () => (
+    <div className="w-full flex justify-start">
+      <div className="max-w-[90%] sm:max-w-[85%] p-3 md:p-4 rounded-md bg-transparent text-white/90">
+        <div className="flex items-center gap-2">
+          <Sparkles size={16} className="text-blue-500 animate-pulse" />
+          <span className="text-sm text-muted">Generating response...</span>
+          <div className="flex gap-1">
+            {[0, 0.1, 0.2].map((delay, i) => (
+              <div
+                key={i}
+                className="w-2 h-2 bg-blue-500 rounded-full animate-bounce"
+                style={{ animationDelay: `${delay}s` }}
+              />
+            ))}
           </div>
-        </main>
-
-        <div className="flex-shrink-0 border-t border-gray-800">
-          <ChatInput
-            input={input}
-            setInput={setInput}
-            onSend={handleSend}
-            placeholder={activeChatId ? "Ask Gemini" : "Ask Gemini"}
-          />
         </div>
-
-        {/* socket status removed */}
       </div>
-    </>
+    </div>
+  );
+
+  const EmptyState = () => (
+    <div className="text-center py-10 md:py-20">
+      <div className="mb-4 flex justify-center">
+        <Sparkles size={36} className="text-blue-500 md:w-12 md:h-12" />
+      </div>
+      <div className="text-xl md:text-3xl font-semibold mb-2 bg-gradient-to-r from-blue-500 via-purple-500 to-pink-500 bg-clip-text text-transparent">
+        Hi, {currentUser?.userName || "Guest"}!
+      </div>
+      <div className="text-sm text-muted">Start a conversation</div>
+    </div>
+  );
+
+  return (
+    <div className="flex-1 flex flex-col h-screen max-h-screen">
+      <ChatHeader
+        title={title}
+        active={!!activeChatId}
+        onToggleSidebar={onToggleSidebar}
+      />
+
+      <main ref={messagesRef} className="flex-1 overflow-y-auto bg-bg">
+        <div className="max-w-4xl mx-auto px-3 sm:px-4 md:px-6 py-4 md:py-8">
+          <div className="space-y-4 md:space-y-8 min-h-0">
+            {messages.length === 0 && <EmptyState />}
+            {messages.map((message) => (
+              <Message
+                key={message._id}
+                from={message.role === "user" ? "me" : "them"}
+              >
+                {message.content}
+              </Message>
+            ))}
+            {isGenerating && <LoadingIndicator />}
+          </div>
+        </div>
+      </main>
+
+      <div className="flex-shrink-0 border-t border-gray-800">
+        <ChatInput
+          input={input}
+          setInput={setInput}
+          onSend={handleSend}
+          placeholder="Ask ByteBot"
+        />
+      </div>
+    </div>
   );
 }

@@ -10,9 +10,12 @@ async function fetchFromWeb(query) {
     body: JSON.stringify({ query, max_results: 3 }),
   });
 
-  const data = await response.json();
+  if (!response.ok) {
+    throw new Error(`Tavily API error: ${response.status}`);
+  }
 
-  return data.results.map((r) => r.content).join("\n");
+  const data = await response.json();
+  return data.results?.map((r) => r.content).join("\n") || "";
 }
 
 module.exports = fetchFromWeb;

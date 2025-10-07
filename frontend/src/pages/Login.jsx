@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
+
 const Login = () => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -16,9 +17,8 @@ const Login = () => {
 
     setLoading(true);
     try {
-      // placeholder: attempt login against backend if available
       const res = await fetch(
-        import.meta.env.VITE_SERVER_DOMAIN + "/api/auth/login",
+        `${import.meta.env.VITE_SERVER_DOMAIN}/api/auth/login`,
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -27,15 +27,12 @@ const Login = () => {
         }
       );
 
-      if (!res.ok) {
+      if (res.ok) {
+        navigate("/");
+      } else {
         const data = await res.json().catch(() => ({}));
         throw new Error(data.message || "Login failed");
       }
-
-      // success: you can redirect or store tokens here
-      // const data = await res.json();
-
-      navigate("/");
     } catch (err) {
       setError(err.message || "Login failed");
     } finally {

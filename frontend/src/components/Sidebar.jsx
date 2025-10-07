@@ -8,16 +8,19 @@ const NavItem = ({
   onClick,
   active = false,
   collapsed = false,
+  isMobile = false,
 }) => (
   <button
     onClick={onClick}
     className={`flex items-center w-full p-2 rounded-lg transition-colors text-left hover:bg-gray-800 ${
       active ? "bg-gray-800" : ""
-    } ${collapsed ? "justify-center" : "gap-3"}`}
-    title={collapsed ? label : undefined}
+    } ${collapsed && !isMobile ? "justify-center" : "gap-3"}`}
+    title={collapsed && !isMobile ? label : undefined}
   >
     <span className="text-accent flex-shrink-0">{icon}</span>
-    {!collapsed && <span className="text-sm text-text truncate">{label}</span>}
+    {(!collapsed || isMobile) && (
+      <span className="text-sm text-text truncate">{label}</span>
+    )}
   </button>
 );
 
@@ -29,54 +32,81 @@ export default function Sidebar({
   const [currentUser, setCurrentUser] = useState(null);
   const [openChatList, setOpenChatList] = useState(true);
   const [collapsed, setCollapsed] = useState(false);
+  const [isMobile, setIsMobile] = useState(window.innerWidth < 640);
 
-  // Auto-collapse on mobile screens
+  // Handle responsive behavior
   useEffect(() => {
     const handleResize = () => {
-      if (window.innerWidth < 640) {
+      const mobile = window.innerWidth < 640;
+      setIsMobile(mobile);
+
+      // Auto-collapse on tablet, expand on desktop
+      if (window.innerWidth >= 640 && window.innerWidth < 768) {
         setCollapsed(true);
       } else if (window.innerWidth >= 768) {
         setCollapsed(false);
       }
     };
 
-    // Set initial state
     handleResize();
-
     window.addEventListener("resize", handleResize);
     return () => window.removeEventListener("resize", handleResize);
   }, []);
 
+  // Load current user
   useEffect(() => {
-    // load current user (cookie-based auth)
-    const load = async () => {
+    const loadUser = async () => {
       try {
         const res = await fetch(
-          import.meta.env.VITE_SERVER_DOMAIN + "/api/auth/me",
+          `${import.meta.env.VITE_SERVER_DOMAIN}/api/auth/me`,
           {
             method: "GET",
             credentials: "include",
           }
         );
-        if (!res.ok) return; // not authenticated or error
-        const data = await res.json();
-        setCurrentUser(data.user || null);
+        if (res.ok) {
+          const data = await res.json();
+          setCurrentUser(data.user || null);
+        }
       } catch (err) {
-        // ignore - sidebar will show fallback
+        // User not authenticated - ignore error
       }
     };
-    load();
+    loadUser();
   }, []);
+
+  const handleToggle = () => {
+    if (isMobile) {
+      setMobileOpen(!mobileOpen);
+    } else {
+      setCollapsed(!collapsed);
+    }
+  };
+
+  const handleNewChat = () => {
+    if (typeof onNewChat === "function") onNewChat(null);
+    try {
+      window.dispatchEvent(new CustomEvent("chat:selected", { detail: null }));
+    } catch (e) {
+      // Event dispatch failed - ignore
+    }
+  };
+
+  const userName = currentUser?.userName || "Guest";
+  const userInitial = userName.charAt(0).toUpperCase();
 
   return (
     <aside
-      className={`bg-surface flex flex-col h-screen transition-all duration-200 z-10 border-r border-gray-800 ${
-        collapsed ? "w-12 sm:w-14" : "w-56 sm:w-64"
+      className={`flex flex-col h-screen transition-all duration-200 z-10 border-r border-gray-800 ${
+        isMobile
+          ? "bg-[#181818] w-56"
+          : `bg-surface ${collapsed ? "w-12 sm:w-14" : "w-56 sm:w-64"}`
       }`}
     >
+      {/* Header with toggle button */}
       <div className="p-2 flex justify-start border-b border-gray-800">
         <button
-          onClick={() => setCollapsed(!collapsed)}
+          onClick={handleToggle}
           className="p-2 rounded-lg hover:bg-gray-800 transition-colors"
           aria-label="Toggle sidebar"
         >
@@ -84,32 +114,27 @@ export default function Sidebar({
         </button>
       </div>
 
+      {/* Navigation */}
       <nav className="flex-1 overflow-y-auto p-2">
         <div className="space-y-1">
           <NavItem
             icon={<Plus size={18} />}
             label="New Chat"
-            onClick={() => {
-              // Clear active chat to start a new conversation
-              if (typeof onNewChat === "function") onNewChat(null);
-              try {
-                window.dispatchEvent(
-                  new CustomEvent("chat:selected", { detail: null })
-                );
-              } catch (e) {}
-            }}
+            onClick={handleNewChat}
             collapsed={collapsed}
+            isMobile={isMobile}
           />
 
           <NavItem
             icon={<MessageSquare size={18} />}
             label="Chats"
-            onClick={() => setOpenChatList((s) => !s)}
+            onClick={() => setOpenChatList((prev) => !prev)}
             active={openChatList}
             collapsed={collapsed}
+            isMobile={isMobile}
           />
 
-          {openChatList && !collapsed && (
+          {openChatList && (!collapsed || isMobile) && (
             <div className="mt-2 space-y-1">
               <ChatList
                 compact={true}
@@ -122,24 +147,19 @@ export default function Sidebar({
         </div>
       </nav>
 
+      {/* User profile */}
       <div className="p-2 border-t border-gray-800">
         <button
           className={`w-full flex items-center gap-3 p-2 rounded-lg hover:bg-gray-800 transition-colors ${
-            collapsed ? "justify-center" : ""
+            collapsed && !isMobile ? "justify-center" : ""
           }`}
         >
           <div className="w-8 h-8 rounded-full bg-gradient-to-br from-blue-500 to-purple-500 flex items-center justify-center text-sm font-semibold flex-shrink-0">
-            {currentUser && currentUser.userName
-              ? currentUser.userName.charAt(0).toUpperCase()
-              : "G"}
+            {userInitial}
           </div>
-          {!collapsed && (
+          {(!collapsed || isMobile) && (
             <div className="text-left min-w-0">
-              <div className="text-sm text-text truncate">
-                {currentUser && currentUser.userName
-                  ? currentUser.userName
-                  : "Guest"}
-              </div>
+              <div className="text-sm text-text truncate">{userName}</div>
               <div className="text-xs text-muted">Free</div>
             </div>
           )}

@@ -6,188 +6,212 @@ const { generateResponse, generateVector } = require("../services/ai.service");
 const messageModel = require("../models/message.model");
 const { createMemory, queryMemory } = require("../services/vector.service");
 const fetchFromWeb = require("../services/webapi.service");
+
 function connectSocket(httpServer) {
   const io = new Server(httpServer, {
     cors: {
-      origin: "http://localhost:5173",
+      origin: process.env.CLIENT_URL,
       credentials: true,
     },
   });
 
-  // socket middleware
+  // Socket authentication middleware
   io.use(async (socket, next) => {
-    // debug: log handshake headers to help diagnose missing cookies
     try {
-      // eslint-disable-next-line no-console
-      console.debug(
-        "socket handshake headers:",
-        socket.handshake.headers || {}
-      );
-    } catch (e) {}
+      const cookies = cookie.parse(socket.handshake.headers?.cookie || "");
 
-    const cookies = cookie.parse(socket.handshake.headers?.cookie || "");
+      if (!cookies.token) {
+        console.warn("Socket authentication failed: no token cookie present");
+        return next(new Error("Authentication error: No token provided"));
+      }
 
-    if (!cookies.token) {
-      // eslint-disable-next-line no-console
-      console.warn(
-        "Socket authentication failed: no token cookie present on handshake"
-      );
-      return next(new Error("Authentication error: No token provided"));
-    }
-
-    try {
       const decoded = jwt.verify(cookies.token, process.env.JWT_SECRET);
-
       const user = await userModel.findById(decoded.id);
 
-      socket.user = user;
+      if (!user) {
+        console.warn("Socket authentication failed: user not found");
+        return next(new Error("Authentication error: User not found"));
+      }
 
+      socket.user = user;
       next();
     } catch (error) {
-      // eslint-disable-next-line no-console
-      console.warn(
-        "Socket authentication failed: invalid token",
-        error && error.message
-      );
+      console.warn("Socket authentication failed:", error.message);
       next(new Error("Authentication error: Invalid token provided"));
     }
   });
 
   io.on("connection", (socket) => {
+    console.log(`User ${socket.user.userName} connected`);
+
     socket.on("ai-message", async (messagePayload) => {
-      // adding message to DB and generating vector
-      const [message, vector] = await Promise.all([
-        // add message to DB
-        messageModel.create({
-          user: socket.user._id,
-          chat: messagePayload.chat,
-          content: messagePayload.content,
-          role: "user",
-        }),
-        // creating vector
-        generateVector(messagePayload.content),
-      ]);
+      try {
+        // Validate message payload
+        if (!messagePayload?.content || !messagePayload?.chat) {
+          return socket.emit("error", { message: "Invalid message payload" });
+        }
 
-      const isCurrentEvent = (text) => {
-        const keywords = [
-          "today",
-          "latest",
-          "news",
-          "current",
-          "price",
-          "weather",
-          "update",
-        ];
-        return keywords.some((word) => text.toLowerCase().includes(word));
-      };
-
-      let externalContext = "";
-      if (isCurrentEvent(messagePayload.content)) {
-        externalContext = await fetchFromWeb(messagePayload.content);
-      }
-
-      const externalMessage = {
-        role: "user",
-        parts: [
-          {
-            text: `Here is some up-to-date information use this to generate a better response for user in the context of previous conversation:\n\n${externalContext}`,
-          },
-        ],
-      };
-
-      // quering vector database  & fetching old 20 chat
-      const [memory, rawChatHistory] = await Promise.all([
-        queryMemory({
-          queryVector: vector,
-          limit: 5,
-          metadata: {
+        // Save user message and generate vector in parallel
+        const [message, vector] = await Promise.all([
+          messageModel.create({
             user: socket.user._id,
-          },
-        }),
-        messageModel
-          .find({
             chat: messagePayload.chat,
-          })
-          .sort({ createdAt: -1 })
-          .limit(20)
-          .lean(),
-      ]);
+            content: messagePayload.content,
+            role: "user",
+          }),
+          generateVector(messagePayload.content),
+        ]);
 
-      //  creating memory in vector database
-      await createMemory({
-        vector,
-        messageId: message._id,
-        metadata: {
-          chat: messagePayload.chat,
-          user: socket.user._id,
-          text: messagePayload.content,
-        },
-      });
+        // Check if message requires real-time information
+        const isCurrentEvent = (text) => {
+          const keywords = [
+            "today",
+            "latest",
+            "current",
+            "update",
+            "news",
+            "now",
+            "time",
+            "live",
+            "price",
+            "weather",
+            "trending",
+            "date",
+            "when",
+            "what day",
+            "what time",
+            "clock",
+            "calendar",
+            "this week",
+            "this month",
+            "this year",
+            "right now",
+            "at the moment",
+            "currently",
+            "real-time",
+            "live data",
+            "recent",
+            "fresh",
+            "up-to-date",
+          ];
+          return keywords.some((word) => text.toLowerCase().includes(word));
+        };
 
-      //  reverseing an arr of last 20 chats so latest chat come first
-      const chatHistory = rawChatHistory.reverse();
+        // Fetch external context if needed
+        let externalContext = "";
+        if (isCurrentEvent(messagePayload.content)) {
+          try {
+            externalContext = await fetchFromWeb(messagePayload.content);
+          } catch (error) {
+            console.warn("Failed to fetch external context:", error.message);
+            externalContext =
+              "Note: Unable to fetch real-time data at this moment. Please inform the user and provide the best available information based on your knowledge and the current date/time in your system context.";
+          }
+        }
 
-      // stm
-      const stm = chatHistory.map((item) => {
-        return {
+        // Query vector database and fetch chat history in parallel
+        const [memory, rawChatHistory] = await Promise.all([
+          queryMemory({
+            queryVector: vector,
+            limit: 5,
+            metadata: { user: socket.user._id },
+          }),
+          messageModel
+            .find({ chat: messagePayload.chat })
+            .sort({ createdAt: -1 })
+            .limit(20)
+            .lean(),
+        ]);
+
+        // Store current message in vector database
+        await createMemory({
+          vector,
+          messageId: message._id,
+          metadata: {
+            chat: messagePayload.chat,
+            user: socket.user._id,
+            text: messagePayload.content,
+          },
+        });
+
+        // Prepare conversation context
+        const chatHistory = rawChatHistory.reverse();
+        const stm = chatHistory.map((item) => ({
           role: item.role,
           parts: [{ text: item.content }],
-        };
-      });
+        }));
 
-      // ltm
-      const ltm = [
-        {
-          role: "user",
-          parts: [
-            {
-              text: ` these are some previous messages from the chat, use them to generate a response \n ${memory
-                .map((item) => item.metadata.text)
-                .join("\n")}`,
-            },
-          ],
-        },
-      ];
+        const ltm = [
+          {
+            role: "user",
+            parts: [
+              {
+                text: `Previous messages for context:\n${memory
+                  .map((item) => item.metadata.text)
+                  .join("\n")}`,
+              },
+            ],
+          },
+        ];
 
-      // sending chatHistory to gemini
-      const response = await generateResponse([
-        externalMessage,
-        ...ltm,
-        ...stm,
-      ]);
+        const externalMessage = externalContext
+          ? [
+              {
+                role: "user",
+                parts: [
+                  {
+                    text: `REAL-TIME DATA (Use this for current information - this is authoritative and up-to-date):\n${externalContext}`,
+                  },
+                ],
+              },
+            ]
+          : [];
 
-      // sending response to client
-      socket.emit("ai-response", {
-        content: response,
-        chat: messagePayload.chat,
-      });
+        // Generate AI response with prioritized real-time data
+        const response = await generateResponse([
+          ...externalMessage, // Real-time data first for highest priority
+          ...stm, // Short-term memory (recent chat)
+          ...ltm, // Long-term memory (context from vector DB)
+        ]);
 
-      // add responsemessage to DB and generating vector of response of ai
-      const [responseMemory, responseVector] = await Promise.all([
-        messageModel.create({
-          user: socket.user._id,
-          chat: messagePayload.chat,
+        // Send response to client
+        socket.emit("ai-response", {
           content: response,
-          role: "model",
-        }),
-        generateVector(response),
-      ]);
-
-      await createMemory({
-        vector: responseVector,
-        messageId: responseMemory._id,
-        metadata: {
           chat: messagePayload.chat,
-          user: socket.user._id,
-          text: response,
-        },
-      });
+        });
+
+        // Save AI response and create vector memory
+        const [responseMessage, responseVector] = await Promise.all([
+          messageModel.create({
+            user: socket.user._id,
+            chat: messagePayload.chat,
+            content: response,
+            role: "model",
+          }),
+          generateVector(response),
+        ]);
+
+        await createMemory({
+          vector: responseVector,
+          messageId: responseMessage._id,
+          metadata: {
+            chat: messagePayload.chat,
+            user: socket.user._id,
+            text: response,
+          },
+        });
+      } catch (error) {
+        console.error("AI message processing error:", error);
+        socket.emit("error", { message: "Failed to process message" });
+      }
     });
 
-    socket.on("disconnect", () => {
-      console.log("socket disconnected");
+    socket.on("disconnect", (reason) => {
+      console.log(`User ${socket.user.userName} disconnected:`, reason);
     });
   });
+
+  return io;
 }
 
 module.exports = connectSocket;

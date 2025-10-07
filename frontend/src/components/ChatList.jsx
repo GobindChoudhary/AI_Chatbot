@@ -1,13 +1,32 @@
 import React, { useEffect, useState } from "react";
+import { Trash2, MessageSquare } from "lucide-react";
 
-const ChatItem = ({ title, last, compact = false, onClick = () => {} }) => {
+const ChatItem = ({
+  title,
+  last,
+  chatId,
+  compact = false,
+  onClick = () => {},
+  onDelete = () => {},
+}) => {
+  const handleDelete = (e) => {
+    e.stopPropagation();
+    if (confirm(`Are you sure you want to delete "${title}"?`)) {
+      onDelete(chatId);
+    }
+  };
+
   return (
     <div
-      className={`flex items-center gap-3 rounded-lg hover:bg-glass transition-colors cursor-pointer ${
+      className={`group flex items-center gap-3 rounded-lg hover:bg-glass transition-colors cursor-pointer ${
         compact ? "px-2 py-1" : "px-3 py-2"
       }`}
       onClick={onClick}
     >
+      <div className="flex-shrink-0">
+        <MessageSquare size={16} className="text-muted" />
+      </div>
+
       <div className={`flex-1 min-w-0 ${compact ? "overflow-hidden" : ""}`}>
         <div className="flex justify-between items-center">
           <h4 className="truncate text-sm font-medium text-text capitalize">
@@ -15,9 +34,16 @@ const ChatItem = ({ title, last, compact = false, onClick = () => {} }) => {
           </h4>
           {!compact && <span className="text-xs text-muted">2h</span>}
         </div>
-
         {!compact && <p className="text-xs text-muted truncate">{last}</p>}
       </div>
+
+      <button
+        onClick={handleDelete}
+        className="flex-shrink-0 opacity-0 cursor-pointer group-hover:opacity-100 p-1 rounded-md hover:bg-red-600/20 text-muted hover:text-red-400 transition-all"
+        aria-label="Delete chat"
+      >
+        <Trash2 size={14} />
+      </button>
     </div>
   );
 };
@@ -26,29 +52,57 @@ export default function ChatList({ compact = false, onSelect = () => {} }) {
   const [items, setItems] = useState([]);
 
   useEffect(() => {
-    const load = async () => {
+    const loadChats = async () => {
       try {
         const res = await fetch(
-          import.meta.env.VITE_SERVER_DOMAIN + "/api/chat",
+          `${import.meta.env.VITE_SERVER_DOMAIN}/api/chat`,
           {
             credentials: "include",
           }
         );
-        if (!res.ok) return;
-        const data = await res.json();
-        setItems(data.chats || []);
+        if (res.ok) {
+          const data = await res.json();
+          setItems(data.chats || []);
+        }
       } catch (err) {
-        // ignore
+        console.error("Error loading chats:", err);
       }
     };
-    load();
-    // listen to chat created events to refresh
-    const onCreated = (e) => {
-      setItems((s) => [e.detail, ...s]);
+
+    loadChats();
+
+    // Listen for chat creation events
+    const handleChatCreated = (e) => {
+      setItems((prev) => [e.detail, ...prev]);
     };
-    window.addEventListener("chat:created", onCreated);
-    return () => window.removeEventListener("chat:created", onCreated);
+
+    window.addEventListener("chat:created", handleChatCreated);
+    return () => window.removeEventListener("chat:created", handleChatCreated);
   }, []);
+
+  const handleDeleteChat = async (chatId) => {
+    try {
+      const res = await fetch(
+        `${import.meta.env.VITE_SERVER_DOMAIN}/api/chat/${chatId}`,
+        {
+          method: "DELETE",
+          credentials: "include",
+        }
+      );
+
+      if (res.ok) {
+        setItems((prev) => prev.filter((chat) => chat._id !== chatId));
+        window.dispatchEvent(
+          new CustomEvent("chat:deleted", { detail: { chatId } })
+        );
+      } else {
+        alert("Failed to delete chat. Please try again.");
+      }
+    } catch (err) {
+      console.error("Error deleting chat:", err);
+      alert("Error deleting chat. Please try again.");
+    }
+  };
 
   return (
     <div
@@ -63,15 +117,15 @@ export default function ChatList({ compact = false, onSelect = () => {} }) {
           compact ? "space-y-1" : "space-y-2"
         }`}
       >
-        {items.map((it) => (
+        {items.map((item) => (
           <ChatItem
-            key={it._id || it.title}
+            key={item._id || item.title}
             compact={compact}
-            title={it.title}
-            last={it.last}
-            onClick={() => {
-              onSelect(it);
-            }}
+            title={item.title}
+            last={item.last}
+            chatId={item._id}
+            onClick={() => onSelect(item)}
+            onDelete={handleDeleteChat}
           />
         ))}
       </div>

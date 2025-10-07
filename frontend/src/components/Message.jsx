@@ -2,19 +2,16 @@ import React from "react";
 import MarkdownPreview from "@uiw/react-markdown-preview";
 
 export default function Message({ from, children }) {
-  const bubbleClass =
-    from === "me"
-      ? "max-w-[85%] sm:max-w-[70%] p-3 md:p-4 rounded-2xl rounded-tr-none bg-gradient-to-br from-blue-600 via-blue-500 to-purple-600 text-white shadow-xl border border-blue-400/20 backdrop-blur-sm"
-      : "max-w-[90%] sm:max-w-[85%] p-3 md:p-4 rounded-md bg-transparent text-white/90";
+  const isUser = from === "me";
+
+  const bubbleClass = isUser
+    ? "max-w-[85%] sm:max-w-[70%] p-3 md:p-4 rounded-2xl rounded-tr-none bg-gradient-to-br from-blue-600 via-blue-500 to-purple-600 text-white shadow-xl border border-blue-400/20 backdrop-blur-sm"
+    : "max-w-[90%] sm:max-w-[85%] p-3 md:p-4 rounded-md bg-transparent text-white/90";
 
   return (
-    <div
-      className={`w-full flex ${
-        from === "me" ? "justify-end" : "justify-start"
-      }`}
-    >
+    <div className={`w-full flex ${isUser ? "justify-end" : "justify-start"}`}>
       <div className={bubbleClass}>
-        {from === "me" ? (
+        {isUser ? (
           <div className="text-sm leading-relaxed break-words">{children}</div>
         ) : (
           <MarkdownPreview
@@ -26,9 +23,7 @@ export default function Message({ from, children }) {
               lineHeight: "1.6",
             }}
             data-color-mode="dark"
-            wrapperElement={{
-              "data-color-mode": "dark",
-            }}
+            wrapperElement={{ "data-color-mode": "dark" }}
           />
         )}
       </div>

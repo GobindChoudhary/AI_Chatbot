@@ -1,5 +1,6 @@
 import React, { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, Link } from "react-router-dom";
+
 const Register = () => {
   const [userName, setUserName] = useState("");
   const [email, setEmail] = useState("");
@@ -8,9 +9,11 @@ const Register = () => {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError("");
+
     if (!userName) return setError("Please enter your username.");
     if (!email) return setError("Please enter your email.");
     if (!password) return setError("Please enter a password.");
@@ -20,7 +23,7 @@ const Register = () => {
     setLoading(true);
     try {
       const res = await fetch(
-        import.meta.env.VITE_SERVER_DOMAIN + "/api/auth/register",
+        `${import.meta.env.VITE_SERVER_DOMAIN}/api/auth/register`,
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -29,13 +32,12 @@ const Register = () => {
         }
       );
 
-      if (!res.ok) {
+      if (res.ok) {
+        navigate("/");
+      } else {
         const data = await res.json().catch(() => ({}));
         throw new Error(data.message || "Registration failed");
       }
-
-      navigate("/");
-      // optionally redirect or clear form here
     } catch (err) {
       setError(err.message || "Registration failed");
     } finally {
@@ -124,9 +126,9 @@ const Register = () => {
 
           <div className="mt-4 text-center text-sm text-[var(--muted)]">
             Already have an account?{" "}
-            <a href="/login" className="text-[var(--accent)]">
+            <Link to="/login" className="text-[var(--accent)]">
               Sign in
-            </a>
+            </Link>
           </div>
         </div>
       </div>
