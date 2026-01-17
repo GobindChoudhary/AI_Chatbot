@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { Trash2, MessageSquare } from "lucide-react";
 
 const ChatItem = ({
@@ -18,28 +18,30 @@ const ChatItem = ({
 
   return (
     <div
-      className={`group flex items-center gap-3 rounded-lg hover:bg-glass transition-colors cursor-pointer ${
-        compact ? "px-2 py-1" : "px-3 py-2"
+      className={`group flex items-center gap-3 rounded-lg hover:bg-[var(--hover)] transition-colors cursor-pointer ${
+        compact ? "px-2 py-1.5" : "px-3 py-2"
       }`}
       onClick={onClick}
     >
       <div className="flex-shrink-0">
-        <MessageSquare size={16} className="text-muted" />
+        <MessageSquare size={16} className="text-[var(--muted)]" />
       </div>
 
       <div className={`flex-1 min-w-0 ${compact ? "overflow-hidden" : ""}`}>
         <div className="flex justify-between items-center">
-          <h4 className="truncate text-sm font-medium text-text capitalize">
+          <h4 className="truncate text-sm font-medium text-[var(--text)] capitalize">
             {title}
           </h4>
-          {!compact && <span className="text-xs text-muted">2h</span>}
+          {!compact && <span className="text-xs text-[var(--muted)]">2h</span>}
         </div>
-        {!compact && <p className="text-xs text-muted truncate">{last}</p>}
+        {!compact && (
+          <p className="text-xs text-[var(--muted)] truncate">{last}</p>
+        )}
       </div>
 
       <button
         onClick={handleDelete}
-        className="flex-shrink-0 opacity-0 cursor-pointer group-hover:opacity-100 p-1 rounded-md hover:bg-red-600/20 text-muted hover:text-red-400 transition-all"
+        className="flex-shrink-0 opacity-0 cursor-pointer group-hover:opacity-100 p-1 rounded-md hover:bg-[var(--danger-bg)] text-[var(--muted)] hover:text-[var(--danger)] transition-all"
         aria-label="Delete chat"
       >
         <Trash2 size={14} />
@@ -58,7 +60,7 @@ export default function ChatList({ compact = false, onSelect = () => {} }) {
           `${import.meta.env.VITE_SERVER_DOMAIN}/api/chat`,
           {
             credentials: "include",
-          }
+          },
         );
         if (res.ok) {
           const data = await res.json();
@@ -87,13 +89,13 @@ export default function ChatList({ compact = false, onSelect = () => {} }) {
         {
           method: "DELETE",
           credentials: "include",
-        }
+        },
       );
 
       if (res.ok) {
         setItems((prev) => prev.filter((chat) => chat._id !== chatId));
         window.dispatchEvent(
-          new CustomEvent("chat:deleted", { detail: { chatId } })
+          new CustomEvent("chat:deleted", { detail: { chatId } }),
         );
       } else {
         alert("Failed to delete chat. Please try again.");
@@ -131,8 +133,8 @@ export default function ChatList({ compact = false, onSelect = () => {} }) {
       </div>
 
       {!compact && (
-        <div className="pt-2 text-xs text-muted">
-          <div>Examples • Tips • Shortcuts</div>
+        <div className="pt-2 text-xs text-[var(--muted)]">
+          Examples • Tips • Shortcuts
         </div>
       )}
     </div>

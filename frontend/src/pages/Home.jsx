@@ -1,13 +1,13 @@
-import React, { useState, useEffect } from "react";
+import { useState, useEffect } from "react";
 import Sidebar from "../components/Sidebar";
 import ChatWindow from "../components/ChatWindow";
 
 const Home = () => {
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [checkingAuth, setCheckingAuth] = useState(true);
   const [activeChat, setActiveChat] = useState(null);
   const [mobileOpen, setMobileOpen] = useState(false);
 
-  // Check authentication on component mount
   useEffect(() => {
     const checkAuth = async () => {
       try {
@@ -16,15 +16,13 @@ const Home = () => {
           {
             method: "GET",
             credentials: "include",
-          }
+          },
         );
-        if (res.ok) {
-          setCheckingAuth(false);
-        } else {
-          window.location.href = "/login";
-        }
-      } catch (err) {
-        window.location.href = "/login";
+        setIsAuthenticated(res.ok);
+      } catch {
+        setIsAuthenticated(false);
+      } finally {
+        setCheckingAuth(false);
       }
     };
     checkAuth();
@@ -53,15 +51,14 @@ const Home = () => {
 
   if (checkingAuth) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-bg text-text">
-        <div className="text-sm text-muted">Checking authentication...</div>
+      <div className="min-h-screen flex items-center justify-center bg-[var(--bg)]">
+        <span className="text-sm text-[var(--muted)]">Loading...</span>
       </div>
     );
   }
 
   return (
-    <div className="h-screen flex bg-bg text-text overflow-hidden relative">
-      {/* Mobile backdrop */}
+    <div className="h-screen flex bg-[var(--bg)] overflow-hidden relative">
       {mobileOpen && (
         <div
           className="fixed inset-0 bg-black/50 z-40 md:hidden"
@@ -69,13 +66,8 @@ const Home = () => {
         />
       )}
 
-      {/* Sidebar */}
       <div
-        className={`
-          ${mobileOpen ? "translate-x-0" : "-translate-x-full"}
-          md:translate-x-0 fixed md:relative z-50 md:z-auto
-          transition-transform duration-300 ease-in-out h-full
-        `}
+        className={`${mobileOpen ? "translate-x-0" : "-translate-x-full"} md:translate-x-0 fixed md:relative z-50 md:z-auto transition-transform duration-300 ease-in-out h-full`}
       >
         <Sidebar
           onNewChat={setActiveChat}
@@ -84,15 +76,13 @@ const Home = () => {
         />
       </div>
 
-      {/* Main content */}
-      <div className="flex-1 flex min-h-0 min-w-0">
-        <div className="flex-1 flex flex-col min-h-0">
-          <ChatWindow
-            activeChat={activeChat}
-            onCreateChat={setActiveChat}
-            onToggleSidebar={() => setMobileOpen(!mobileOpen)}
-          />
-        </div>
+      <div className="flex-1 flex flex-col min-h-0 min-w-0">
+        <ChatWindow
+          activeChat={activeChat}
+          onCreateChat={setActiveChat}
+          onToggleSidebar={() => setMobileOpen(!mobileOpen)}
+          isAuthenticated={isAuthenticated}
+        />
       </div>
     </div>
   );
