@@ -1,5 +1,7 @@
 import React, { useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
+import { ArrowLeft } from "lucide-react";
+import { useAuth } from "../context/AuthContext";
 
 const Login = () => {
   const [email, setEmail] = useState("");
@@ -7,6 +9,7 @@ const Login = () => {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
+  const { login } = useAuth();
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -17,21 +20,11 @@ const Login = () => {
 
     setLoading(true);
     try {
-      const res = await fetch(
-        `${import.meta.env.VITE_SERVER_DOMAIN}/api/auth/login`,
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          credentials: "include",
-          body: JSON.stringify({ email, password }),
-        }
-      );
-
-      if (res.ok) {
+      const result = await login(email, password);
+      if (result.success) {
         navigate("/");
       } else {
-        const data = await res.json().catch(() => ({}));
-        throw new Error(data.message || "Login failed");
+        throw new Error(result.message || "Login failed");
       }
     } catch (err) {
       setError(err.message || "Login failed");
@@ -42,6 +35,13 @@ const Login = () => {
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-[var(--bg)]">
+      <button
+        onClick={() => navigate("/")}
+        className="absolute top-4 left-4 p-2 rounded-lg hover:bg-[var(--hover)] transition-colors text-[var(--muted)] hover:text-[var(--text)]"
+        aria-label="Go back"
+      >
+        <ArrowLeft size={20} />
+      </button>
       <div className="w-full max-w-md mx-4">
         <div className="bg-[var(--surface)] border border-[var(--border)] rounded-lg shadow-sm p-6">
           <h2 className="text-lg font-semibold text-[var(--text)] mb-1">

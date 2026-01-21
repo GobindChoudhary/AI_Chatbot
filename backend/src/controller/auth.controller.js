@@ -101,7 +101,12 @@ async function loginController(req, res) {
 
 function logoutController(req, res) {
   try {
-    res.clearCookie("token", cookieOptions);
+    // clearCookie needs same options as cookie was set with, except maxAge
+    res.clearCookie("token", {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
+    });
     return res.status(200).json({
       success: true,
       message: "Logged out successfully",
@@ -116,29 +121,10 @@ function logoutController(req, res) {
 }
 
 async function meController(req, res) {
-  try {
-    const token = req.cookies?.token;
-    if (!token) {
-      return res.status(401).json({ message: "Not authenticated" });
-    }
-
-    let payload;
-    try {
-      payload = jwt.verify(token, process.env.JWT_SECRET);
-    } catch (err) {
-      return res.status(401).json({ message: "Invalid or expired token" });
-    }
-
-    const user = await userModel.findById(payload.id).select("-password");
-    if (!user) {
-      return res.status(401).json({ message: "User not found" });
-    }
-
-    return res.status(200).json({ user });
-  } catch (error) {
-    console.error("Me Error:", error);
-    return res.status(500).json({ message: "Server error" });
-  }
+  // User is already verified and attached by authMiddleware
+  const user = req.user?.toObject ? req.user.toObject() : req.user;
+  if (user?.password) delete user.password;
+  return res.status(200).json({ user });
 }
 
 module.exports = {

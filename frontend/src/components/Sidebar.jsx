@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { FilePenLine, MessageSquareText, Menu, X } from "lucide-react";
+import { useAuth } from "../context/AuthContext";
 import ChatList from "./ChatList";
 import NavItem from "./NavItem";
 
@@ -8,7 +9,7 @@ export default function Sidebar({
   setMobileOpen = () => {},
   onNewChat = null,
 }) {
-  const [currentUser, setCurrentUser] = useState(null);
+  const { user } = useAuth();
   const [openChatList, setOpenChatList] = useState(true);
   const [collapsed, setCollapsed] = useState(false);
   const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
@@ -32,28 +33,6 @@ export default function Sidebar({
     return () => window.removeEventListener("resize", handleResize);
   }, []);
 
-  // Load current user
-  useEffect(() => {
-    const loadUser = async () => {
-      try {
-        const res = await fetch(
-          `${import.meta.env.VITE_SERVER_DOMAIN}/api/auth/me`,
-          {
-            method: "GET",
-            credentials: "include",
-          },
-        );
-        if (res.ok) {
-          const data = await res.json();
-          setCurrentUser(data.user || null);
-        }
-      } catch (err) {
-        // User not authenticated - ignore error
-      }
-    };
-    loadUser();
-  }, []);
-
   const handleToggle = () => {
     if (isMobile) {
       setMobileOpen(!mobileOpen);
@@ -67,7 +46,7 @@ export default function Sidebar({
     window.dispatchEvent(new CustomEvent("chat:selected", { detail: null }));
   };
 
-  const userName = currentUser?.userName || "Guest";
+  const userName = user?.userName || "Guest";
   const userInitial = userName.charAt(0).toUpperCase();
 
   return (

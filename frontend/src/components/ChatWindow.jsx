@@ -1,5 +1,7 @@
 import { useEffect, useState, useRef } from "react";
+import { useNavigate } from "react-router-dom";
 import { initSocket, sendAiMessage, onAiResponse } from "../utils/socket";
+import { useAuth } from "../context/AuthContext";
 import Message from "./Message";
 import ChatHeader from "./ChatHeader";
 import ChatInput from "./ChatInput";
@@ -10,37 +12,15 @@ export default function ChatWindow({
   activeChat,
   onCreateChat,
   onToggleSidebar,
-  isAuthenticated = false,
 }) {
+  const { user, isAuthenticated } = useAuth();
+  const navigate = useNavigate();
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState("");
-  const [currentUser, setCurrentUser] = useState(null);
   const [loadingChats, setLoadingChats] = useState(new Set());
   const messagesRef = useRef(null);
 
   const activeChatId = activeChat?._id || null;
-
-  // Load current user
-  useEffect(() => {
-    const loadUser = async () => {
-      try {
-        const res = await fetch(
-          `${import.meta.env.VITE_SERVER_DOMAIN}/api/auth/me`,
-          {
-            method: "GET",
-            credentials: "include",
-          },
-        );
-        if (res.ok) {
-          const data = await res.json();
-          setCurrentUser(data.user || null);
-        }
-      } catch (err) {
-        console.error("Error loading user:", err);
-      }
-    };
-    loadUser();
-  }, []);
 
   // Load messages for selected chat
   useEffect(() => {
@@ -132,8 +112,9 @@ export default function ChatWindow({
   const handleSend = async () => {
     if (!input.trim()) return;
 
+    // Check authentication when user tries to chat
     if (!isAuthenticated) {
-      window.location.href = "/login";
+      navigate("/login");
       return;
     }
 
@@ -184,7 +165,7 @@ export default function ChatWindow({
         <img src={logo} className="w-24 h-24 md:w-32 md:h-32" alt="ByteBot" />
       </div>
       <h2 className="text-xl md:text-3xl font-bold mb-2 text-[var(--text)] capitalize">
-        Hi, {currentUser?.userName || "Guest"}!
+        Hi, {user?.userName || "Guest"}!
       </h2>
       <p className="text-sm text-[var(--muted)]">Start a conversation</p>
     </div>
